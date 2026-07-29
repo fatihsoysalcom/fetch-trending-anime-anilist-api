@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AniList API Anime Fetcher</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1 { color: #007bff; }
+        #anime-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .anime-item {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 15px;
+            text-align: center;
+        }
+        .anime-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .anime-item h3 {
+            margin: 0;
+            font-size: 1.1em;
+            color: #555;
+        }
+        .loading {
+            font-style: italic;
+            color: #888;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Trending Anime from AniList</h1>
+    <p>This example fetches the top trending anime using the AniList GraphQL API.</p>
+    <div id="anime-list" class="loading">Loading anime data...</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const animeListDiv = document.getElementById('anime-list');
+
+            // Define the GraphQL query to fetch trending anime.
+            // This query requests the top 5 trending anime overall.
+            const query = `
+                query {
+                    Page(page: 1, perPage: 5) {
+                        media(type: ANIME, sort: TRENDING_DESC) {
+                            id
+                            title {
+                                romaji
+                                english
+                            }
+                            coverImage {
+                                large
+                            }
+                            siteUrl
+                        }
+                    }
+                }
+            `;
+
+            const url = 'https://graphql.anilist.co';
+
+            // Make a POST request to the AniList GraphQL API endpoint.
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: query
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                animeListDiv.classList.remove('loading');
+                animeListDiv.innerHTML = ''; // Clear loading message
+
+                if (data.errors) {
+                    throw new Error(data.errors.map(e => e.message).join(', '));
+                }
+
+                const animeList = data.data.Page.media;
+
+                if (animeList.length === 0) {
+                    animeListDiv.innerHTML = '<p>No trending anime found.</p>';
+                    return;
+                }
+
+                // Iterate through the fetched anime and display them.
+                animeList.forEach(anime => {
+                    const animeItem = document.createElement('div');
+                    animeItem.classList.add('anime-item');
+
+                    const title = anime.title.english || anime.title.romaji;
+                    const imageUrl = anime.coverImage.large;
+                    const animeUrl = anime.siteUrl;
+
+                    animeItem.innerHTML = `
+                        <a href="${animeUrl}" target="_blank">
+                            <img src="${imageUrl}" alt="${title} Cover">
+                            <h3>${title}</h3>
+                        </a>
+                    `;
+                    animeListDiv.appendChild(animeItem);
+                });
+            })
+            .catch(error => {
+                animeListDiv.classList.remove('loading');
+                animeListDiv.innerHTML = `<p class="error">Failed to fetch anime: ${error.message}</p>`;
+                console.error('Error fetching anime:', error);
+            });
+        });
+    </script>
+</body>
+</html>
